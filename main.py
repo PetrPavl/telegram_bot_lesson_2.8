@@ -1,5 +1,6 @@
 import logging
 import datetime
+from collections import defaultdict
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CallbackContext, CommandHandler, ConversationHandler
 
@@ -8,7 +9,7 @@ TOKEN_BOT = "6060454250:AAH8QcnM9xaDzXcnBDeqLpN3w8y9yPi16jE"
 user_data = dict()
 
 logging.basicConfig(
-        format='%(asctime)s - %(name)s - %(levelname)s - %(massage)s',
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         level=logging.INFO
     )
 
@@ -27,6 +28,10 @@ async def start(update: Update, context: CallbackContext) -> None:
         "Показати всі транзакції доходів: /show_all_trans\n"
         "Видалити дохід: /del_inc\n"
         "Видалити витрату: /del_exp\n"
+        "Статистика за день: /show_stats_day\n"
+        "Статистика за поточний тиждень: /show_stats_week\n"
+        "Статистика за поточний місяць: /show_stats_month\n"
+        "Статистика за поточний рік: /show_stats_year\n"
         "Завершити: /end\n"
     )
 
@@ -173,6 +178,117 @@ async def delete_income(update: Update, context: CallbackContext):
         await update.message.reply_text(f"Невірний формат команди. Використовуйте: /del_inc [індекс]")
 
 
+async def show_statistics_by_day(update: Update, context: CallbackContext):
+    user_id = update.message.from_user.id
+    today = datetime.date.today()
+    message = f"Статистика за поточний день ({today.strftime('%Y-%m-%d')}):\n"
+
+    stats_expenses = defaultdict(float)
+    stats_income = defaultdict(float)
+
+    for transaction in transactions["витрати"]:
+        if transaction['date'].date() == today:
+            stats_expenses[transaction['category']] += transaction['amount']
+
+    for transaction in transactions["доходи"]:
+        if transaction['date'].date() == today:
+            stats_income[transaction['category']] += transaction['amount']
+
+    message += "Витрати:\n"
+    for category, total in stats_expenses.items():
+        message += f"Категорія: {category}, Сума: {total}\n"
+
+    message += "\nДоходи:\n"
+    for category, total in stats_income.items():
+        message += f"Категорія: {category}, Сума: {total}\n"
+
+    await update.message.reply_text(message)
+
+
+async def show_statistics_by_week(update: Update, context: CallbackContext):
+    user_id = update.message.from_user.id
+    today = datetime.date.today()
+    start_of_week = today - datetime.timedelta(days=today.weekday())
+    message = f"Статистика за поточний тиждень ({start_of_week.strftime('%Y-%m-%d')} - {today.strftime('%Y-%m-%d')}):\n"
+
+    stats_expenses = defaultdict(float)
+    stats_income = defaultdict(float)
+
+    for transaction in transactions["витрати"]:
+        if start_of_week <= transaction['date'].date() <= today:
+            stats_expenses[transaction['category']] += transaction['amount']
+
+    for transaction in transactions["доходи"]:
+        if start_of_week <= transaction['date'].date() <= today:
+            stats_income[transaction['category']] += transaction['amount']
+
+    message += "Витрати:\n"
+    for category, total in stats_expenses.items():
+        message += f"Категорія: {category}, Сума: {total}\n"
+
+    message += "\nДоходи:\n"
+    for category, total in stats_income.items():
+        message += f"Категорія: {category}, Сума: {total}\n"
+
+    await update.message.reply_text(message)
+
+
+async def show_statistics_by_month(update: Update, context: CallbackContext):
+    user_id = update.message.from_user.id
+    today = datetime.date.today()
+    first_day_of_month = today.replace(day=1)
+    message = f"Статистика за поточний місяць ({first_day_of_month.strftime('%B %Y')}):\n"
+
+    stats_expenses = defaultdict(float)
+    stats_income = defaultdict(float)
+
+    for transaction in transactions["витрати"]:
+        if transaction['date'].date() >= first_day_of_month:
+            stats_expenses[transaction['category']] += transaction['amount']
+
+    for transaction in transactions["доходи"]:
+        if transaction['date'].date() >= first_day_of_month:
+            stats_income[transaction['category']] += transaction['amount']
+
+    message += "Витрати:\n"
+    for category, total in stats_expenses.items():
+        message += f"Категорія: {category}, Сума: {total}\n"
+
+    message += "\nДоходи:\n"
+    for category, total in stats_income.items():
+        message += f"Категорія: {category}, Сума: {total}\n"
+
+    await update.message.reply_text(message)
+
+
+async def show_statistics_by_year(update: Update, context: CallbackContext):
+    user_id = update.message.from_user.id
+    today = datetime.date.today()
+    current_year = today.year
+    message = f"Статистика за поточний рік ({current_year}):\n"
+
+    stats_expenses = defaultdict(float)
+    stats_income = defaultdict(float)
+
+    for transaction in transactions["витрати"]:
+        if transaction['date'].year == current_year:
+            stats_expenses[transaction['category']] += transaction['amount']
+
+    for transaction in transactions["доходи"]:
+        if transaction['date'].year == current_year:
+            stats_income[transaction['category']] += transaction['amount']
+
+    message += "Витрати:\n"
+    for category, total in stats_expenses.items():
+        message += f"Категорія: {category}, Сума: {total}\n"
+
+    message += "\nДоходи:\n"
+    for category, total in stats_income.items():
+        message += f"Категорія: {category}, Сума: {total}\n"
+
+    await update.message.reply_text(message)
+
+
 def run():
     app = ApplicationBuilder().token(TOKEN_BOT).build()
     logging.info("Application build successfully!")
@@ -188,6 +304,10 @@ def run():
     app.add_handler(CommandHandler("show_all_trans", show_all_transactions))
     app.add_handler(CommandHandler("del_exp", delete_expense))
     app.add_handler(CommandHandler("del_inc", delete_income))
+    app.add_handler(CommandHandler("show_stats_day", show_statistics_by_day))
+    app.add_handler(CommandHandler("show_stats_week", show_statistics_by_week))
+    app.add_handler(CommandHandler("show_stats_month", show_statistics_by_month))
+    app.add_handler(CommandHandler("show_stats_year", show_statistics_by_year))
     app.add_handler(CommandHandler("end", end))
 
     app.run_polling()
