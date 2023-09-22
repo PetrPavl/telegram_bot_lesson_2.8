@@ -4,10 +4,10 @@ from collections import defaultdict
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CallbackContext, CommandHandler, ConversationHandler
 import pickle
+import os
 
 
 TOKEN_BOT = "6060454250:AAH8QcnM9xaDzXcnBDeqLpN3w8y9yPi16jE"
-user_data = dict()
 
 logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -44,7 +44,24 @@ async def list_expenses_categories(update: Update, context: CallbackContext) -> 
 
 
 expenses = ["Їжа", "Транспорт", "Житло", "Розваги", "Спорт", "Навчання", "Шоппінг"]
-transactions = {"витрати": [], "доходи": []}
+
+
+DATA_FILE = "transactions.pkl"
+
+
+def save_data(transactions):
+    with open(DATA_FILE, "wb") as file:
+        pickle.dump(transactions, file)
+
+
+def load_data():
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "rb") as file:
+            return pickle.load(file)
+    return {"витрати": [], "доходи": []}
+
+
+transactions = load_data()
 
 
 async def add_expense(update: Update, context: CallbackContext):
@@ -59,8 +76,7 @@ async def add_expense(update: Update, context: CallbackContext):
             await update.message.reply_text(
                 f"Додано {amount} до категорії '{category}' ({date.strftime('%Y-%m-%d')})."
                 )
-            with open("transactions.pkl", "wb") as file:
-                pickle.dump(transactions, file)
+            save_data(transactions)
         else:
             await update.message.reply_text(
                 "Неприпустима категорія витрат. Оберіть зі списку категорій витрат /list_exp"
@@ -125,8 +141,7 @@ async def add_income(update: Update, context: CallbackContext):
         transactions["доходи"].append({"category": category, "amount": amount, "date": date})
         await update.message.reply_text(
             f"Додано доход {amount} до категорії '{category}' ({date.strftime('%Y-%m-%d')}).")
-        with open("transactions.pkl", "wb") as file:
-            pickle.dump(transactions, file)
+        save_data(transactions)
     else:
         await update.message.reply_text(f"Невірний формат команди. Використовуйте: /add_inc [категорія] [сума]")
 
@@ -160,6 +175,7 @@ async def delete_expense(update: Update, context: CallbackContext):
             await update.message.reply_text(
                 f"Видалено витрату: Категорія: {deleted_transaction['category']}, "
                 f"Сума: {deleted_transaction['amount']}")
+            save_data(transactions)
         else:
             await update.message.reply_text("Невірний індекс витрати.")
     else:
@@ -177,6 +193,7 @@ async def delete_income(update: Update, context: CallbackContext):
             await update.message.reply_text(
                 f"Видалено дохід: Категорія: {deleted_transaction['category']}, "
                 f"Сума: {deleted_transaction['amount']}")
+            save_data(transactions)
         else:
             await update.message.reply_text("Невірний індекс доходу.")
     else:
