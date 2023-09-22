@@ -3,6 +3,7 @@ import datetime
 from collections import defaultdict
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CallbackContext, CommandHandler, ConversationHandler
+import pickle
 
 
 TOKEN_BOT = "6060454250:AAH8QcnM9xaDzXcnBDeqLpN3w8y9yPi16jE"
@@ -58,6 +59,8 @@ async def add_expense(update: Update, context: CallbackContext):
             await update.message.reply_text(
                 f"Додано {amount} до категорії '{category}' ({date.strftime('%Y-%m-%d')})."
                 )
+            with open("transactions.pkl", "wb") as file:
+                pickle.dump(transactions, file)
         else:
             await update.message.reply_text(
                 "Неприпустима категорія витрат. Оберіть зі списку категорій витрат /list_exp"
@@ -122,6 +125,8 @@ async def add_income(update: Update, context: CallbackContext):
         transactions["доходи"].append({"category": category, "amount": amount, "date": date})
         await update.message.reply_text(
             f"Додано доход {amount} до категорії '{category}' ({date.strftime('%Y-%m-%d')}).")
+        with open("transactions.pkl", "wb") as file:
+            pickle.dump(transactions, file)
     else:
         await update.message.reply_text(f"Невірний формат команди. Використовуйте: /add_inc [категорія] [сума]")
 
@@ -290,6 +295,11 @@ async def show_statistics_by_year(update: Update, context: CallbackContext):
 
 
 def run():
+    try:
+        with open("transactions.pkl", "rb") as file:
+            transaction = pickle.load(file)
+    except FileNotFoundError:
+        transaction = {"витрати": [], "доходи": []}
     app = ApplicationBuilder().token(TOKEN_BOT).build()
     logging.info("Application build successfully!")
 
